@@ -4,11 +4,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import PERCENTAGE, EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.components.sensor import SensorEntity
 
 from .const import DOMAIN
 from .coordinator import FelshareCoordinator
+from .entity import FelshareEntity
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback) -> None:
@@ -17,57 +17,37 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
 
     async_add_entities(
         [
-            FelshareLiquidLevelSensor(coordinator, entry.entry_id, dev),
-            FelshareMqttStatusSensor(coordinator, entry.entry_id, dev),
-            FelshareWorkScheduleSensor(coordinator, entry.entry_id, dev),
+            FelshareLiquidLevelSensor(coordinator, entry, dev),
+            FelshareMqttStatusSensor(coordinator, entry, dev),
+            FelshareWorkScheduleSensor(coordinator, entry, dev),
         ]
     )
 
 
-class _Base(CoordinatorEntity[FelshareCoordinator]):
-    def __init__(self, coordinator: FelshareCoordinator, entry_id: str, dev: str) -> None:
-        super().__init__(coordinator)
-        self._entry_id = entry_id
-        self._dev = dev
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self._dev)},
-            "name": f"Felshare {self._dev}",
-            "manufacturer": "Felshare",
-            "model": "Cloud MQTT Device",
-        }
-
-    @property
-    def available(self) -> bool:
-        # If we have ever seen data OR MQTT is connected, keep entity available.
-        data = self.coordinator.data
-        return bool(data.connected or data.last_seen)
-
-
-class FelshareLiquidLevelSensor(_Base, SensorEntity):
+class FelshareLiquidLevelSensor(FelshareEntity, SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Liquid level"
     _attr_native_unit_of_measurement = PERCENTAGE
+    _attr_icon = "mdi:gauge"
 
-    def __init__(self, coordinator: FelshareCoordinator, entry_id: str, dev: str) -> None:
-        super().__init__(coordinator, entry_id, dev)
-        self._attr_unique_id = f"{entry_id}_{dev}_liquid_level"
+    def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:
+        super().__init__(coordinator, entry, dev)
+        self._attr_unique_id = f"{self._entry_id}_{dev}_liquid_level"
 
     @property
     def native_value(self):
         return self.coordinator.data.liquid_level
 
 
-class FelshareMqttStatusSensor(_Base, SensorEntity):
+class FelshareMqttStatusSensor(FelshareEntity, SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "MQTT status"
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:cloud-check"
 
-    def __init__(self, coordinator: FelshareCoordinator, entry_id: str, dev: str) -> None:
-        super().__init__(coordinator, entry_id, dev)
-        self._attr_unique_id = f"{entry_id}_{dev}_mqtt_status"
+    def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:
+        super().__init__(coordinator, entry, dev)
+        self._attr_unique_id = f"{self._entry_id}_{dev}_mqtt_status"
 
     @property
     def native_value(self):
@@ -83,31 +63,29 @@ class FelshareMqttStatusSensor(_Base, SensorEntity):
         }
 
 
-class FelshareWorkScheduleSensor(_Base, SensorEntity):
-    """Human-friendly summary of the programmed WorkTime schedule."""
-
+class FelshareWorkScheduleSensor(FelshareEntity, SensorEntity):
     _attr_has_entity_name = True
     _attr_name = "Work schedule info"
-    _attr_suggested_object_id = "99_work_schedule_info"
-    # Home Assistant does not allow EntityCategory.CONFIG for SensorEntity.
-    # This is informational, so expose it as diagnostic instead.
     _attr_entity_category = EntityCategory.DIAGNOSTIC
+    _attr_icon = "mdi:calendar-clock"
 
-    def __init__(self, coordinator: FelshareCoordinator, entry_id: str, dev: str) -> None:
-        super().__init__(coordinator, entry_id, dev)
-        self._attr_unique_id = f"{entry_id}_{dev}_work_schedule"
+    def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:
+        super().__init__(coordinator, entry, dev)
+        self._attr_unique_id = f"{self._entry_id}_{dev}_work_schedule"
 
     @property
     def native_value(self):
         d = self.coordinator.data
         if not d.work_start or not d.work_end:
             return None
-        enabled = "enabled" if d.work_enabled else "disabled"
-        days = d.work_days or "-"
-        run_stop = ""
+
+        days = (d.work_days or "-").replace(",", " ")
+        enabled = "ON" if d.work_enabled else "OFF"
+
+        parts = [f"{d.work_start}–{d.work_end}", days, enabled]
         if d.work_run_s is not None and d.work_stop_s is not None:
-            run_stop = f" run={d.work_run_s}s stop={d.work_stop_s}s"
-        return f"{d.work_start}–{d.work_end} ({days}) {enabled}{run_stop}".strip()
+            parts.append(f"run {d.work_run_s}s / stop {d.work_stop_s}s")
+        return " | ".join(parts)
 
     @property
     def extra_state_attributes(self):

@@ -4,13 +4,12 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.const import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
-from homeassistant.helpers.update_coordinator import CoordinatorEntity
 from homeassistant.components.switch import SwitchEntity
 from homeassistant.exceptions import HomeAssistantError
 
 from .const import DOMAIN
 from .coordinator import FelshareCoordinator
-
+from .entity import FelshareEntity
 
 # Work days bitmask: Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64
 _DAYS = [
@@ -33,10 +32,10 @@ async def async_setup_entry(
     dev = coordinator.data.device_id
 
     entities: list[SwitchEntity] = [
-        FelsharePowerSwitch(coordinator, entry.entry_id, dev),
-        FelshareFanSwitch(coordinator, entry.entry_id, dev),
+        FelsharePowerSwitch(coordinator, entry, dev),
+        FelshareFanSwitch(coordinator, entry, dev),
         # Work schedule controls (config)
-        FelshareWorkEnabledSwitch(coordinator, entry.entry_id, dev),
+        FelshareWorkEnabledSwitch(coordinator, entry, dev),
     ]
 
     # Add 7 day toggles
@@ -44,7 +43,7 @@ async def async_setup_entry(
         entities.append(
             FelshareWorkDaySwitch(
                 coordinator,
-                entry.entry_id,
+                entry,
                 dev,
                 key=key,
                 label=label,
@@ -55,112 +54,111 @@ async def async_setup_entry(
     async_add_entities(entities)
 
 
-class _Base(CoordinatorEntity[FelshareCoordinator]):
-    def __init__(self, coordinator: FelshareCoordinator, entry_id: str, dev: str) -> None:
-        super().__init__(coordinator)
-        self._entry_id = entry_id
-        self._dev = dev
-
-    @property
-    def device_info(self):
-        return {
-            "identifiers": {(DOMAIN, self._dev)},
-            "name": f"Felshare {self._dev}",
-            "manufacturer": "Felshare",
-            "model": "Cloud MQTT Device",
-        }
-
-    @property
-    def available(self) -> bool:
-        data = self.coordinator.data
-        return bool(data and (data.connected or data.last_seen))
-
-
-class FelsharePowerSwitch(_Base, SwitchEntity):
+class FelsharePowerSwitch(FelshareEntity, SwitchEntity):
     _attr_has_entity_name = True
     _attr_name = "Power"
+    _attr_suggested_object_id = "power"
+    _attr_icon = "mdi:power"
 
-    def __init__(self, coordinator: FelshareCoordinator, entry_id: str, dev: str) -> None:
-        super().__init__(coordinator, entry_id, dev)
-        self._attr_unique_id = f"{entry_id}_{dev}_power"
+    def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:
+        super().__init__(coordinator, entry, dev)
+        self._attr_unique_id = f"{self._entry_id}_{dev}_power"
 
     @property
     def is_on(self) -> bool | None:
         return self.coordinator.data.power_on
 
     async def async_turn_on(self, **kwargs) -> None:
-        await self.hass.async_add_executor_job(self.coordinator.hub.publish_power, True)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.hub.publish_power, True)
+        except Exception as e:
+            raise HomeAssistantError(str(e))
 
     async def async_turn_off(self, **kwargs) -> None:
-        await self.hass.async_add_executor_job(self.coordinator.hub.publish_power, False)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.hub.publish_power, False)
+        except Exception as e:
+            raise HomeAssistantError(str(e))
 
 
-class FelshareFanSwitch(_Base, SwitchEntity):
+class FelshareFanSwitch(FelshareEntity, SwitchEntity):
     _attr_has_entity_name = True
     _attr_name = "Fan"
+    _attr_suggested_object_id = "fan"
+    _attr_icon = "mdi:fan"
 
-    def __init__(self, coordinator: FelshareCoordinator, entry_id: str, dev: str) -> None:
-        super().__init__(coordinator, entry_id, dev)
-        self._attr_unique_id = f"{entry_id}_{dev}_fan"
+    def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:
+        super().__init__(coordinator, entry, dev)
+        self._attr_unique_id = f"{self._entry_id}_{dev}_fan"
 
     @property
     def is_on(self) -> bool | None:
         return self.coordinator.data.fan_on
 
     async def async_turn_on(self, **kwargs) -> None:
-        await self.hass.async_add_executor_job(self.coordinator.hub.publish_fan, True)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.hub.publish_fan, True)
+        except Exception as e:
+            raise HomeAssistantError(str(e))
 
     async def async_turn_off(self, **kwargs) -> None:
-        await self.hass.async_add_executor_job(self.coordinator.hub.publish_fan, False)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.hub.publish_fan, False)
+        except Exception as e:
+            raise HomeAssistantError(str(e))
 
 
-class FelshareWorkEnabledSwitch(_Base, SwitchEntity):
+class FelshareWorkEnabledSwitch(FelshareEntity, SwitchEntity):
     """Enable/disable the programmed WorkTime schedule."""
 
     _attr_has_entity_name = True
     _attr_name = "Work schedule"
     _attr_entity_category = EntityCategory.CONFIG
     _attr_suggested_object_id = "00_work_schedule"
+    _attr_icon = "mdi:calendar-clock"
 
-    def __init__(self, coordinator: FelshareCoordinator, entry_id: str, dev: str) -> None:
-        super().__init__(coordinator, entry_id, dev)
-        self._attr_unique_id = f"{entry_id}_{dev}_work_enabled"
+    def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:
+        super().__init__(coordinator, entry, dev)
+        self._attr_unique_id = f"{self._entry_id}_{dev}_work_enabled"
 
     @property
     def is_on(self) -> bool | None:
         return self.coordinator.data.work_enabled
 
     async def async_turn_on(self, **kwargs) -> None:
-        await self.hass.async_add_executor_job(self.coordinator.hub.publish_work_enabled, True)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.hub.publish_work_enabled, True)
+        except Exception as e:
+            raise HomeAssistantError(str(e))
 
     async def async_turn_off(self, **kwargs) -> None:
-        await self.hass.async_add_executor_job(self.coordinator.hub.publish_work_enabled, False)
+        try:
+            await self.hass.async_add_executor_job(self.coordinator.hub.publish_work_enabled, False)
+        except Exception as e:
+            raise HomeAssistantError(str(e))
 
 
-class FelshareWorkDaySwitch(_Base, SwitchEntity):
-    """One toggle per weekday (stored as a bitmask in WorkTime flag low 7 bits)."""
-
+class FelshareWorkDaySwitch(FelshareEntity, SwitchEntity):
     _attr_has_entity_name = True
     _attr_entity_category = EntityCategory.CONFIG
+    _attr_icon = "mdi:calendar-week"
 
     def __init__(
         self,
         coordinator: FelshareCoordinator,
-        entry_id: str,
+        entry: ConfigEntry,
         dev: str,
         *,
         key: str,
         label: str,
         bit: int,
     ) -> None:
-        super().__init__(coordinator, entry_id, dev)
+        super().__init__(coordinator, entry, dev)
         self._key = key
-        self._label = label
-        self._bit = bit & 0x7F
-
+        self._bit = bit
         self._attr_name = f"Work day {label}"
-        self._attr_unique_id = f"{entry_id}_{dev}_work_day_{key}"
-        # Only affects entity_id ordering (name stays clean)
+        self._attr_unique_id = f"{self._entry_id}_{dev}_work_day_{key}"
+        # Keep your sorting scheme
         self._attr_suggested_object_id = f"05_work_day_{key}"
 
     @property
@@ -168,24 +166,23 @@ class FelshareWorkDaySwitch(_Base, SwitchEntity):
         mask = self.coordinator.data.work_days_mask
         if mask is None:
             return None
-        return bool(int(mask) & self._bit)
+        return bool(mask & self._bit)
 
     async def async_turn_on(self, **kwargs) -> None:
-        await self._set_day(True)
+        await self._async_set_day(True)
 
     async def async_turn_off(self, **kwargs) -> None:
-        await self._set_day(False)
+        await self._async_set_day(False)
 
-    async def _set_day(self, enabled: bool) -> None:
+    async def _async_set_day(self, on: bool) -> None:
+        d = self.coordinator.data
+        mask = d.work_days_mask if d.work_days_mask is not None else 0x7F
+        if on:
+            mask |= self._bit
+        else:
+            mask &= ~self._bit
+
         try:
-            cur = self.coordinator.data.work_days_mask
-            cur_mask = int(cur) if cur is not None else 0
-
-            if enabled:
-                new_mask = cur_mask | self._bit
-            else:
-                new_mask = cur_mask & (~self._bit & 0x7F)
-
-            await self.hass.async_add_executor_job(self.coordinator.hub.publish_work_schedule, days_mask=new_mask)
+            await self.hass.async_add_executor_job(self.coordinator.hub.publish_work_schedule, days_mask=mask)
         except Exception as e:
             raise HomeAssistantError(str(e))

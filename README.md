@@ -1,53 +1,86 @@
 # Felshare (Cloud MQTT) — Home Assistant Custom Integration
 
-> **Unofficial / Unaffiliated**: This component is a *custom integration* for Home Assistant. It is not an official Felshare product.
+> **Unofficial / Unaffiliated / Not Endorsed**  
+> This is a community-made *custom integration* for Home Assistant. It is **not** an official Felshare product and is **not** endorsed by Felshare or Home Assistant.
 
-Integration to control **Felshare smart diffusers** (and compatible devices) using the **Felshare Cloud**:
-- Login via Felshare API to obtain a token.
-- Connection to **MQTT over WebSockets (TLS)** on the cloud.
-- Publishing/receiving device status and commands.
+This integration helps you control **Felshare smart diffusers** (and compatible devices) via the **Felshare Cloud**:
+- Sign-in via Felshare cloud API to obtain a session token
+- Connect to **MQTT over WebSockets (TLS)** (cloud)
+- Publish/receive device status and commands
+
+---
+
+## Legal & Responsible Use (READ FIRST)
+
+### No affiliation / trademarks
+- “Felshare” and related names/logos are **trademarks of their respective owners**.  
+- This project is **independent** and provided for interoperability/automation purposes only.  
+- Do not claim sponsorship, partnership, or endorsement by Felshare or Home Assistant.
+
+### No warranty / limitation of liability
+This project is provided **“AS IS”**, without warranty of any kind (express or implied), including (but not limited to) merchantability, fitness for a particular purpose, and non‑infringement.
+
+To the maximum extent permitted by law, the authors/contributors shall not be liable for any claim, damages, or other liability arising from the use of this software (including but not limited to device malfunction, property damage, lost profits, data loss, service outages, or security incidents).
+
+### Compliance & acceptable use
+By using this integration, **you** are responsible for ensuring your use:
+- Complies with all applicable laws and regulations
+- Complies with Felshare’s terms of service, acceptable use policy, and privacy policy (if any)
+- Is limited to devices and accounts that you **own or are authorized to control**
+- Does not violate any contractual obligations (e.g., reverse engineering restrictions)
+
+> **Note:** This integration may use endpoints and message formats that are undocumented and may change at any time. If Felshare modifies their cloud platform, the integration may stop working.
+
+### Safety notice
+This integration is for **convenience automation** only. Do **not** rely on it for any safety‑critical use cases. You are responsible for safe operation of the diffuser (oils, ventilation, fire safety, pets/children, etc.).
+
+### Privacy & credentials
+- You provide your Felshare account credentials to Home Assistant during configuration.  
+- Home Assistant stores credentials and tokens according to its internal storage mechanisms.  
+- You are responsible for securing your Home Assistant instance and network.
+- **Recommendation:** use a dedicated Felshare account with minimal privileges if possible, and avoid sharing logs that contain tokens/IDs.
 
 ---
 
 ## Features
 
 - Diffuser **Power** On/Off
-- **Fan** Control (if your model supports it)
-- **Oil Name** / Fragrance
-- Oil Parameters:
+- **Fan** control (if your model supports it)
+- **Oil Name** / fragrance label
+- Oil metrics:
   - **Consumption (ml/h)**
   - **Oil Capacity (ml)**
   - **Remaining Oil (ml)**
-  - **Liquid Level (%)** Sensor
-- **WorkTime** Scheduling (operating hours):
-  - Enable/Disable schedule
-  - Start/End Time (HH:MM)
-  - Work Duration (seconds) and Pause (seconds)
-  - Days of the Week (individual switch per day)
-- Diagnostic Sensors:
+  - **Liquid Level (%)** sensor
+- **WorkTime** scheduling:
+  - Enable/disable schedule
+  - Start/end time (HH:MM)
+  - Work duration (seconds) and pause (seconds)
+  - Days of the week (individual switches)
+- Diagnostics:
   - **MQTT Status**
-  - **Work Schedule Info** (summary text of the schedule)
+  - **Work Schedule Info** (schedule summary text)
 
 ---
 
 ## Requirements
 
-- Home Assistant (Core/Supervised/OS)
-- Felshare Account (the same one used in the app)
-- The device must be added to your account in the Felshare app.
-- Internet access is required to `app.felsharegroup.com` on **443/TCP**.
+- Home Assistant (Core / Supervised / OS)
+- A Felshare account (the same one used in the mobile app)
+- Your device added to that account in the Felshare app
+- Outbound internet access to `app.felsharegroup.com` on **443/TCP**
 
-> **Important**: This integration is **cloud-based** (not local). If the cloud service goes down or changes its API, this integration may stop working.
+> **Important:** This is **cloud-based** (not local). If the cloud service goes down or changes, this integration may stop working.
 
 ---
 
 ## Installation (Manual)
 
-1. Copy the folder:
+1. Copy:
    ```
    custom_components/felshare
    ```
-   into your Home Assistant configuration directory:
+   into:
    ```
    <your-home-assistant-config>/custom_components/felshare
    ```
@@ -58,14 +91,14 @@ Integration to control **Felshare smart diffusers** (and compatible devices) usi
 
 ## Configuration (UI)
 
-1. Navigate to **Settings → Devices & Services → Add Integration**.
-2. Search for **Felshare (Cloud MQTT)**.
-3. Enter your:
+1. Go to **Settings → Devices & Services → Add Integration**
+2. Search for **Felshare (Cloud MQTT)**
+3. Enter:
    - **Email**
    - **Password**
-4. Select the **Device ID** from the provided list.
+4. Select your **Device ID** from the list
 
-Upon completion, Home Assistant will create a "Felshare <device_id>" device with its associated entities.
+Home Assistant will create a device “Felshare <device_id>” with entities.
 
 ---
 
@@ -74,7 +107,7 @@ Upon completion, Home Assistant will create a "Felshare <device_id>" device with
 ### Switches
 - `switch.<...>_power` — **Power**
 - `switch.<...>_fan` — **Fan**
-- `switch.<...>_00_work_schedule` — **Work Schedule** (enables the schedule)
+- `switch.<...>_00_work_schedule` — **Work Schedule**
 - `switch.<...>_05_work_day_mon` … `switch.<...>_05_work_day_sun` — **Work Day <Day>**
 
 ### Text
@@ -96,33 +129,31 @@ Upon completion, Home Assistant will create a "Felshare <device_id>" device with
 
 ---
 
-## How to Use "WorkTime" (Scheduling)
+## Using “WorkTime” Scheduling
 
-1. Enable the **Work Schedule** switch.
-2. Define:
+1. Enable the **Work Schedule** switch
+2. Set:
    - **Work Start (HH:MM)** (e.g., `09:00`)
    - **Work End (HH:MM)** (e.g., `21:00`)
-3. Define:
+3. Set:
    - **Work Run (seconds)** (e.g., `30`)
    - **Work Stop (seconds)** (e.g., `190`)
-4. Enable the **Work Day** switches for your desired days.
+4. Enable the desired **Work Day** switches
 
-> Note: The device expects a "complete" payload when you change any part of the schedule. This integration handles re-sending the full package to ensure it's applied correctly.
+> The device typically expects a full schedule payload when any value changes. The integration re-sends a complete payload to apply changes consistently.
 
 ---
 
 ## Troubleshooting
 
-### Entities showing `unknown` or not updating
+### Entities show `unknown` or don’t update
+- Confirm the diffuser is **online** in the Felshare app
+- Confirm HA has working internet (DNS + outbound 443)
+- Open the Felshare app and enter the device screen at least once; the integration may “learn” the initial sync payload and store it under `.storage`
+- Restart Home Assistant or reload the integration
 
-- Verify the diffuser is **online** within the Felshare app.
-- Ensure Home Assistant has internet connectivity (DNS and access to port 443).
-- Open the Felshare app and navigate to the device's screen at least once. This allows the integration to **learn the initial "sync payload"** by observing the app's traffic and save it in the `.storage` file.
-- Restart Home Assistant or reload the integration.
-
-### Enabling Debugging Logs
-
-Add the following to your `configuration.yaml`:
+### Enable debug logs
+Add to `configuration.yaml`:
 
 ```yaml
 logger:
@@ -131,14 +162,14 @@ logger:
     custom_components.felshare: debug
 ```
 
-Then, restart Home Assistant and check **Settings → System → Logs**.
+Restart Home Assistant and check **Settings → System → Logs**.
 
 ---
 
-## How it Works (Technical Summary)
+## Technical Summary (for transparency)
 
 - Cloud API (Login): `http://app.felsharegroup.com:7001/login`
-- Device List: `http://app.felsharegroup.com:7001/device` (requires `token` in header)
+- Device List: `http://app.felsharegroup.com:7001/device` (`token` header)
 - MQTT over WebSockets (TLS):
   - Host: `app.felsharegroup.com`
   - Port: `443`
@@ -149,58 +180,102 @@ Then, restart Home Assistant and check **Settings → System → Logs**.
 
 ---
 
-## Disclaimer
+## Support
 
-This project is provided "as is" without any warranty. Use it at your own risk.
+This is a community project. Support is best-effort:
+- Please open issues with logs (**redact tokens/emails/device IDs**)
+- PRs are welcome
 
+---
 
+## License
 
-# Felshare (Cloud MQTT) — Home Assistant Custom Integration
+See the `LICENSE` file in this repository.  
+If no license file is present yet, **add one** (e.g., MIT/Apache-2.0) before publishing/distributing the code.
 
-> **Unofficial / no afiliado**: Este componente es un *custom integration* para Home Assistant. No es un producto oficial de Felshare.
+---
 
-Integración para controlar **difusores “smart” Felshare** (y dispositivos compatibles) usando el **Cloud de Felshare**:
-- Login por API de Felshare para obtener token
+---
+
+# Felshare (Cloud MQTT) — Integración Custom para Home Assistant
+
+> **No oficial / No afiliado / Sin respaldo**  
+> Esta integración es comunitaria y **no** es un producto oficial de Felshare, ni está respaldada por Felshare o Home Assistant.
+
+Esta integración permite controlar **difusores inteligentes Felshare** (y compatibles) usando el **cloud de Felshare**:
+- Login por API cloud para obtener token
 - Conexión a **MQTT por WebSockets (TLS)** en el cloud
 - Publicación/recepción de estado y comandos
 
 ---
 
+## Aviso legal y uso responsable (LEER PRIMERO)
+
+### Sin afiliación / marcas registradas
+- “Felshare” y nombres/logos relacionados son **marcas registradas de sus dueños**.
+- Este proyecto es **independiente** y existe solo para interoperabilidad/automatización.
+- No afirmes patrocinio, asociación o respaldo por parte de Felshare o Home Assistant.
+
+### Sin garantía / limitación de responsabilidad
+Este proyecto se ofrece **“tal cual”**, sin garantía de ningún tipo (expresa o implícita), incluyendo (entre otras) comerciabilidad, idoneidad para un propósito particular y no infracción.
+
+En la máxima medida permitida por la ley, los autores/colaboradores no serán responsables por daños o pérdidas derivadas del uso del software (incluyendo fallos del dispositivo, daños materiales, pérdidas económicas, pérdida de datos, caídas del servicio o incidentes de seguridad).
+
+### Cumplimiento y uso permitido
+Al usar esta integración, **tú** eres responsable de asegurar que tu uso:
+- Cumpla con las leyes y regulaciones aplicables
+- Cumpla con los términos/condiciones y políticas de Felshare (si aplican)
+- Sea solo con dispositivos/cuentas que **te pertenecen o tienes autorización para controlar**
+- No viole obligaciones contractuales (por ejemplo, restricciones de ingeniería inversa)
+
+> **Nota:** El cloud y sus endpoints/formats pueden cambiar sin aviso. Si Felshare cambia la plataforma, la integración puede dejar de funcionar.
+
+### Seguridad
+Esta integración es solo para **automatización de conveniencia**. No la uses para escenarios críticos. Eres responsable del uso seguro del difusor (aceites, ventilación, seguridad contra incendios, mascotas/niños, etc.).
+
+### Privacidad y credenciales
+- Proporcionas tus credenciales de Felshare a Home Assistant durante la configuración.
+- Home Assistant almacena credenciales/tokens según sus mecanismos internos.
+- Tú eres responsable de asegurar tu instancia de Home Assistant y tu red.
+- **Recomendación:** usa una cuenta dedicada de Felshare con permisos mínimos si es posible, y no compartas logs con tokens/IDs.
+
+---
+
 ## Funciones
 
-- Encendido/apagado del difusor (**Power**)
-- Control del ventilador (**Fan**) *(si tu modelo lo soporta)*
-- Nombre del aceite/fragancia (**Oil name**)
-- Parámetros de aceite:
-  - **Consumption (ml/h)**  
+- Encendido/apagado (**Power**)
+- Control de ventilador (**Fan**) si el modelo lo soporta
+- **Oil name** (fragancia)
+- Métricas de aceite:
+  - **Consumption (ml/h)**
   - **Oil capacity (ml)**
   - **Remain oil (ml)**
-  - Sensor **Liquid level (%)**
-- Programación **WorkTime** (horario de trabajo):
-  - Activar/desactivar horario
+  - **Liquid level (%)**
+- Horario **WorkTime**:
+  - Activar/desactivar
   - Hora inicio/fin (HH:MM)
-  - Tiempo de trabajo (segundos) y pausa (segundos)
-  - Días de la semana (switch por día)
-- Sensores de diagnóstico:
+  - Tiempo de trabajo y pausa (segundos)
+  - Días de semana (switch por día)
+- Diagnóstico:
   - **MQTT status**
-  - **Work schedule info** (texto resumen del horario)
+  - **Work schedule info**
 
 ---
 
 ## Requisitos
 
-- Home Assistant (Core/Supervised/OS)
-- Cuenta de Felshare (la misma que usas en la app)
-- El dispositivo debe estar agregado a tu cuenta en la app Felshare
-- Salida a internet permitida hacia `app.felsharegroup.com` por **443/TCP**
+- Home Assistant (Core / Supervised / OS)
+- Cuenta Felshare
+- Dispositivo agregado en la app Felshare
+- Salida a internet hacia `app.felsharegroup.com` por **443/TCP**
 
-> **Importante:** esta integración es **cloud** (no local). Si el cloud cae o cambia, la integración puede dejar de funcionar.
+> **Importante:** Es cloud (no local). Si el cloud cae o cambia, puede dejar de funcionar.
 
 ---
 
 ## Instalación (manual)
 
-1. Copia la carpeta:
+1. Copia:
    ```
    custom_components/felshare
    ```
@@ -215,96 +290,21 @@ Integración para controlar **difusores “smart” Felshare** (y dispositivos c
 
 ## Configuración (UI)
 
-1. Ve a **Settings → Devices & Services → Add Integration**
+1. **Settings → Devices & Services → Add Integration**
 2. Busca **Felshare (Cloud MQTT)**
-3. Ingresa:
-   - **Email**
-   - **Password**
-4. Selecciona el **Device ID** de la lista
-
-Al finalizar, Home Assistant creará un dispositivo “Felshare <device_id>” con sus entidades.
+3. Ingresa Email/Password
+4. Selecciona el **Device ID**
 
 ---
 
-## Entidades creadas
+## Soporte
 
-### Switches
-- `switch.<...>_power` — **Power**
-- `switch.<...>_fan` — **Fan**
-- `switch.<...>_00_work_schedule` — **Work schedule** (habilitar horario)
-- `switch.<...>_05_work_day_mon` … `switch.<...>_05_work_day_sun` — **Work day <día>**
-
-### Text
-- `text.<...>_oil_name` — **Oil name**
-- `text.<...>_01_work_start` — **Work start (HH:MM)**
-- `text.<...>_02_work_end` — **Work end (HH:MM)**
-
-### Number
-- `number.<...>_consumption` — **Consumption (ml/h)**
-- `number.<...>_capacity` — **Oil capacity (ml)**
-- `number.<...>_remain_oil` — **Remain oil (ml)**
-- `number.<...>_03_work_run_s` — **Work run (seconds)**
-- `number.<...>_04_work_stop_s` — **Work stop (seconds)**
-
-### Sensor
-- `sensor.<...>_liquid_level` — **Liquid level (%)**
-- `sensor.<...>_mqtt_status` — **MQTT status** *(diagnóstico)*
-- `sensor.<...>_work_schedule` — **Work schedule info** *(diagnóstico)*
+Proyecto comunitario (best‑effort).  
+Al reportar problemas, **oculta tokens/emails/device IDs**.
 
 ---
 
-## Cómo usar “WorkTime” (horario)
+## Licencia
 
-1. Activa el switch **Work schedule**
-2. Define:
-   - **Work start (HH:MM)** (ej. `09:00`)
-   - **Work end (HH:MM)** (ej. `21:00`)
-3. Define:
-   - **Work run (seconds)** (ej. `30`)
-   - **Work stop (seconds)** (ej. `190`)
-4. Enciende los switches de **Work day** para los días deseados.
-
-> Nota: El dispositivo espera un payload “completo” cuando cambias algo del horario; la integración se encarga de re-enviar el paquete completo.
-
----
-
-## Troubleshooting
-
-### Entidades en `unknown` o sin cambios
-- Verifica que el difusor esté **online** en la app Felshare.
-- Asegura conectividad desde HA a internet (DNS + 443).
-- Abre la app Felshare y entra a la pantalla del dispositivo al menos una vez:  
-  la integración puede **aprender el “sync payload”** observando el tráfico de la app y guardarlo en `.storage`.
-- Reinicia Home Assistant o recarga la integración.
-
-### Habilitar logs de depuración
-Agrega en `configuration.yaml`:
-
-```yaml
-logger:
-  default: info
-  logs:
-    custom_components.felshare: debug
-```
-
-Luego reinicia y revisa **Settings → System → Logs**.
-
----
-
-## Cómo funciona (resumen técnico)
-
-- API cloud (login): `http://app.felsharegroup.com:7001/login`
-- Lista de dispositivos: `http://app.felsharegroup.com:7001/device` (header `token`)
-- MQTT por WebSockets (TLS):
-  - Host: `app.felsharegroup.com`
-  - Puerto: `443`
-  - Path: `/mqtt`
-  - Topics:
-    - RX: `/device/rxd/<device_id>`
-    - TX: `/device/txd/<device_id>`
-
----
-
-## Aviso
-
-Este proyecto se ofrece “tal cual”, sin garantía. Úsalo bajo tu responsabilidad.
+Revisa el archivo `LICENSE`.  
+Si aún no existe, **agrega una licencia** (MIT/Apache‑2.0) antes de publicar/distribuir.

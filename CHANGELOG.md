@@ -1,7 +1,7 @@
 # Changelog
 
-## 0.1.6.5-hardened-2 (Bugfix)
-Base: **0.1.6.5-hardened-1**
+## 0.1.6.8(Bugfix)
+Base: **0.1.6.8**
 
 ### ✅ Fixes
 - **Work Schedule days mapping corrected** to match Felshare app / device bitmask (**Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64**).

@@ -2,7 +2,7 @@
 
 Control Felshare waterless diffusers via the Felshare cloud MQTT service.
 
-> ⚠️ **Unofficial integration / private APIs**: This uses Felshare cloud endpoints that are not documented as an official public API. Using private endpoints may violate vendor terms and may stop working if Felshare changes their backend.
+> ⚠️ **Disclaimer (unofficial / private API)**: Not affiliated with Felshare. This integration uses undocumented/private endpoints and may break at any time. Use at your own risk and respect Felshare’s terms.
 
 ## Features
 
@@ -17,12 +17,33 @@ Control Felshare waterless diffusers via the Felshare cloud MQTT service.
 - Diagnostics sensor with last seen/topic/payload + timestamps
 - **Refresh status** button (best-effort cloud status request)
 
-## Hardening / Stability (0.1.6.5-hardened-2)
+## Hardening / Stability
 
 - Outbound MQTT publish queue with **rate limiting** + **coalescing**
 - Debounced `request_status()` and throttled bulk (0x0C)
 - Avoids “startup spam” on MQTT reconnects
 - More polite HTTP headers + safer handling of `401/403/429`
+
+## HVAC Sync
+
+If you have a thermostat integrated in Home Assistant (for example **Nest Gen 3**), you can
+optionally make the diffuser **follow active cooling**:
+
+- Diffuser turns **ON** only when the thermostat reports `hvac_action: cooling`
+- Diffuser turns **OFF** when cooling stops
+- Optional schedule window (days + start/end time)
+- Built-in **on/off delays** (defaults 60s) to avoid rapid toggles on short-cycles
+
+### Configure from your dashboard (recommended)
+
+The HVAC Sync settings are exposed as entities so you can place them in your own Lovelace
+card (no Options Flow required):
+
+- `switch.*hvac_sync` (enable/disable)
+- `select.*hvac_sync_thermostat` (pick any `climate.*`)
+- `time.*hvac_sync_start` / `time.*hvac_sync_end`
+- `switch.*hvac_sync_day_*` (Mon..Sun)
+- `number.*hvac_sync_on_delay_s` / `number.*hvac_sync_off_delay_s` (optional)
 
 ## Installation (HACS — custom repository)
 
@@ -63,3 +84,15 @@ In **Settings → Devices & services → Felshare → Configure**:
 ## Disclaimer
 
 This is an unofficial community integration.
+
+## Debug logging
+
+To see detailed logs (queueing/coalescing, WorkTime changes, HVAC Sync decisions), add this to your `configuration.yaml` and restart Home Assistant:
+
+```yaml
+logger:
+  logs:
+    custom_components.felshare: debug
+```
+
+Then check **Settings → System → Logs**.

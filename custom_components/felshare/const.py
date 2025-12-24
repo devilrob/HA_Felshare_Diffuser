@@ -3,7 +3,7 @@ from __future__ import annotations
 DOMAIN = "felshare"
 
 # Integration version (kept in code to build polite UA strings and diagnostics)
-VERSION = "0.1.6.5-hardened-2"
+VERSION = "0.1.6.8"
 
 CONF_EMAIL = "email"
 CONF_PASSWORD = "password"
@@ -35,6 +35,23 @@ DEFAULT_STATUS_MIN_INTERVAL_SECONDS = 60
 DEFAULT_BULK_MIN_INTERVAL_HOURS = 6
 DEFAULT_STARTUP_STALE_MINUTES = 30
 
+# HVAC Sync (optional): follow a Home Assistant climate entity and only run the diffuser
+# when HVAC is actively cooling (and within schedule).
+CONF_HVAC_SYNC_ENABLED = "hvac_sync_enabled"
+CONF_HVAC_SYNC_CLIMATE_ENTITY = "hvac_sync_climate_entity"
+CONF_HVAC_SYNC_DAYS_MASK = "hvac_sync_days_mask"
+CONF_HVAC_SYNC_START = "hvac_sync_start"
+CONF_HVAC_SYNC_END = "hvac_sync_end"
+CONF_HVAC_SYNC_ON_DELAY_SECONDS = "hvac_sync_on_delay_seconds"
+CONF_HVAC_SYNC_OFF_DELAY_SECONDS = "hvac_sync_off_delay_seconds"
+
+DEFAULT_HVAC_SYNC_ENABLED = False
+DEFAULT_HVAC_SYNC_DAYS_MASK = 0x7F  # Sun..Sat
+DEFAULT_HVAC_SYNC_START = "00:00"
+DEFAULT_HVAC_SYNC_END = "23:59"
+DEFAULT_HVAC_SYNC_ON_DELAY_SECONDS = 60
+DEFAULT_HVAC_SYNC_OFF_DELAY_SECONDS = 60
+
 # Mark entities unavailable after this many minutes without RXD updates
 OFFLINE_AFTER_MINUTES = 15
 
@@ -50,4 +67,4 @@ MQTT_PORT = 443
 MQTT_WS_PATH = "/mqtt"
 
 # We only forward the platforms we actually implement in this package.
-PLATFORMS: list[str] = ["sensor", "switch", "number", "text", "button"]
+PLATFORMS: list[str] = ["sensor", "switch", "number", "text", "button", "select", "time"]

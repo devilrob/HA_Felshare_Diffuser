@@ -19,6 +19,12 @@ class FelshareState:
     last_status_request_ts: Optional[float] = None
     last_bulk_request_ts: Optional[float] = None
 
+    # Last outbound TX (diagnostics)
+    last_tx_ts: Optional[float] = None
+    last_tx_key: Optional[str] = None
+    last_tx_payload_hex: Optional[str] = None
+    outbox_len: Optional[int] = None
+
     power_on: Optional[bool] = None
     fan_on: Optional[bool] = None
 
@@ -34,9 +40,13 @@ class FelshareState:
     work_run_s: Optional[int] = None
     work_stop_s: Optional[int] = None
     work_enabled: Optional[bool] = None
-    work_days_mask: Optional[int] = None  # bitmask (Mon=1, Tue=2, Wed=4, Thu=8, Fri=16, Sat=32, Sun=64)
+    # Device mapping: Sun=1, Mon=2, Tue=4, Wed=8, Thu=16, Fri=32, Sat=64
+    work_days_mask: Optional[int] = None
     work_flag_raw: Optional[int] = None  # raw flag byte (0..255)
     work_days: Optional[str] = None  # human-friendly ("Mon,Tue,...")
 
     last_topic: Optional[str] = None
     last_payload_hex: Optional[str] = None
+
+    # Last error (best-effort, diagnostics)
+    last_error: Optional[str] = None

@@ -13,6 +13,7 @@ from .const import (
 )
 from .coordinator import FelshareCoordinator
 from .hub import FelshareHub
+from .hvac_sync import FelshareHvacSyncController
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -28,9 +29,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
 
     await coordinator.async_start()
 
+    # Optional HVAC Sync controller (runs entirely locally inside HA)
+    hvac_sync = FelshareHvacSyncController(hass, entry, coordinator)
+    await hvac_sync.async_start()
+
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = {
         "hub": hub,
         "coordinator": coordinator,
+        "hvac_sync": hvac_sync,
     }
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
@@ -42,5 +48,8 @@ async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     data = hass.data.get(DOMAIN, {}).pop(entry.entry_id, None)
     if data:
         coordinator: FelshareCoordinator = data["coordinator"]
+        hvac_sync = data.get("hvac_sync")
+        if hvac_sync is not None:
+            await hvac_sync.async_stop()
         await coordinator.async_stop()
     return unload_ok

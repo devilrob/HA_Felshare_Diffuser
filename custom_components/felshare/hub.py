@@ -244,12 +244,22 @@ class FelshareHub:
 
         # Debounce: avoid multiple status requests per minute (default).
         if self.state.last_status_request_ts and (now - self.state.last_status_request_ts) < self._status_min_interval_s:
+            self.logger.debug(
+                "request_status debounced (%.1fs < %.1fs)",
+                (now - self.state.last_status_request_ts),
+                self._status_min_interval_s,
+            )
             return
 
         # Status request (sync payload if learned; else 0x05)
         try:
             self.state.last_status_request_ts = now
             payload = self._sync_payload if self._sync_payload else b"\x05"
+            self.logger.debug(
+                "request_status sending status_request (sync=%s) payload=%s",
+                bool(self._sync_payload),
+                _bytes_to_hex(payload),
+            )
             self._publish(payload, key="status_request")
         except Exception as e:
             self.logger.debug("request_status status publish failed: %s", e)
@@ -258,9 +268,19 @@ class FelshareHub:
         if self._should_request_bulk(now):
             try:
                 self.state.last_bulk_request_ts = now
+                self.logger.debug(
+                    "request_status sending bulk_request 0x0C (min_interval=%.0fs)",
+                    self._bulk_min_interval_s,
+                )
                 self._publish(b"\x0C", key="bulk_request")
             except Exception as e:
                 self.logger.debug("request_status bulk publish failed: %s", e)
+        else:
+            self.logger.debug(
+                "bulk request suppressed (min_interval=%.0fs, stale=%s)",
+                self._bulk_min_interval_s,
+                self._bulk_state_is_stale(),
+            )
 
         self._emit()
 
@@ -269,7 +289,14 @@ class FelshareHub:
         last = self.state.last_bulk_request_ts
         if last and (now - last) < self._bulk_min_interval_s:
             # Allow early refresh only if we don't have schedule fields yet.
-            return self._bulk_state_is_stale()
+            stale = self._bulk_state_is_stale()
+            self.logger.debug(
+                "bulk_request throttled (%.0fs < %.0fs) stale=%s",
+                (now - last),
+                self._bulk_min_interval_s,
+                stale,
+            )
+            return stale
         return True
 
     def _bulk_state_is_stale(self) -> bool:
@@ -649,15 +676,29 @@ class FelshareHub:
                     continue
 
                 key, payload = self._outbox.popitem(last=False)
+                # Diagnostics: outbox depth after pop
+                self.state.outbox_len = len(self._outbox)
 
             if payload is None:
                 continue
 
             try:
+                self.logger.debug(
+                    "TX send key=%s payload=%s outbox_len=%s",
+                    key,
+                    _bytes_to_hex(payload),
+                    self.state.outbox_len,
+                )
                 self._publish_now(payload)
+                # Diagnostics for last TX
+                now_ts = time.time()
+                self.state.last_tx_ts = now_ts
+                self.state.last_tx_key = key
+                self.state.last_tx_payload_hex = _bytes_to_hex(payload)
             except Exception as e:
                 # If disconnected mid-flight, requeue and let reconnect logic handle it.
                 self.logger.debug("Publish failed (%s): %s", key, e)
+                self.state.last_error = f"tx_failed({key}): {e}"
                 with self._outbox_cv:
                     # Put it back at the front.
                     if key:
@@ -690,9 +731,15 @@ class FelshareHub:
 
         k = key or self._payload_key(payload)
         with self._outbox_cv:
+            replaced = k in self._outbox
             self._outbox[k] = payload
             # Ensure the newest request for the same key is sent last.
             self._outbox.move_to_end(k, last=True)
+            self.state.outbox_len = len(self._outbox)
+            if replaced:
+                self.logger.debug("TX coalesced key=%s payload=%s", k, _bytes_to_hex(payload))
+            else:
+                self.logger.debug("TX queued key=%s payload=%s outbox_len=%s", k, _bytes_to_hex(payload), self.state.outbox_len)
             self._outbox_cv.notify_all()
 
     # ---------------- parsing ----------------
@@ -790,6 +837,16 @@ class FelshareHub:
             flag = p[6]
             run_s = int.from_bytes(p[7:9], "big", signed=False)
             stop_s = int.from_bytes(p[9:11], "big", signed=False)
+            self.logger.debug(
+                "RX WorkTime: start=%02d:%02d end=%02d:%02d flag=0x%02X run=%ss stop=%ss",
+                start_h,
+                start_m,
+                end_h,
+                end_m,
+                flag,
+                run_s,
+                stop_s,
+            )
             self._set_work_schedule(start_h, start_m, end_h, end_m, flag, run_s, stop_s)
         except Exception as e:
             self.logger.debug("Failed parsing workmode frame: %s", e)
@@ -808,6 +865,16 @@ class FelshareHub:
             flag = p[15]
             run_s = int.from_bytes(p[16:18], "big", signed=False)
             stop_s = int.from_bytes(p[18:20], "big", signed=False)
+            self.logger.debug(
+                "RX Bulk(0x0C) WorkTime: start=%02d:%02d end=%02d:%02d flag=0x%02X run=%ss stop=%ss",
+                sh,
+                sm,
+                eh,
+                em,
+                flag,
+                run_s,
+                stop_s,
+            )
             # Basic sanity
             if 0 <= sh <= 23 and 0 <= eh <= 23 and 0 <= sm <= 59 and 0 <= em <= 59:
                 self._set_work_schedule(sh, sm, eh, em, flag, run_s, stop_s)
@@ -1033,6 +1100,31 @@ class FelshareHub:
             cur_days = self._days_str_to_mask(days)
         if days_mask is not None:
             cur_days = int(days_mask) & 0x7F
+
+        # Device limitation: run/stop are effectively capped at 999 seconds.
+        orig_run, orig_stop = int(cur_run), int(cur_stop)
+        cur_run = max(0, min(int(cur_run), 999))
+        cur_stop = max(0, min(int(cur_stop), 999))
+        if orig_run != cur_run or orig_stop != cur_stop:
+            self.logger.warning(
+                "WorkTime run/stop clamped to device max 999s (run=%s->%s, stop=%s->%s)",
+                orig_run,
+                cur_run,
+                orig_stop,
+                cur_stop,
+            )
+
+        self.logger.debug(
+            "Publish WorkTime: start=%02d:%02d end=%02d:%02d enabled=%s days_mask=0x%02X run=%ss stop=%ss",
+            sh,
+            sm,
+            eh,
+            em,
+            bool(cur_enabled),
+            int(cur_days) & 0x7F,
+            int(cur_run),
+            int(cur_stop),
+        )
 
         # Build flag: enable + days
         flag = (0x80 if cur_enabled else 0x00) | (cur_days & 0x7F)

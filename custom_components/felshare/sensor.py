@@ -68,6 +68,8 @@ class FelshareMqttStatusSensor(FelshareEntity, SensorEntity):
     def extra_state_attributes(self):
         d = self.coordinator.data
         hub = getattr(self.coordinator, "hub", None)
+        hvac_sync = self.hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {}).get("hvac_sync")
+        hvac_status = getattr(hvac_sync, "status", None) if hvac_sync else None
         return {
             "last_seen": d.last_seen.isoformat() if d.last_seen else None,
             "last_seen_ts": d.last_seen_ts,
@@ -84,6 +86,27 @@ class FelshareMqttStatusSensor(FelshareEntity, SensorEntity):
 
             "last_topic": d.last_topic,
             "last_payload_hex": d.last_payload_hex,
+
+            # Outbound TX diagnostics
+            "last_tx_ts": d.last_tx_ts,
+            "last_tx_utc": _iso_from_ts(d.last_tx_ts),
+            "last_tx_key": d.last_tx_key,
+            "last_tx_payload_hex": d.last_tx_payload_hex,
+            "outbox_len": d.outbox_len,
+
+            "last_error": getattr(d, "last_error", None),
+
+            # HVAC Sync diagnostics (local automation)
+            "hvac_sync_enabled": getattr(hvac_status, "enabled", None),
+            "hvac_sync_climate_entity": getattr(hvac_status, "climate_entity", None),
+            "hvac_sync_in_window": getattr(hvac_status, "in_window", None),
+            "hvac_sync_cooling": getattr(hvac_status, "cooling", None),
+            "hvac_sync_desired_power": getattr(hvac_status, "desired_power", None),
+            "hvac_sync_last_reason": getattr(hvac_status, "last_reason", None),
+            "hvac_sync_last_action_ts": getattr(hvac_status, "last_action_ts", None),
+            "hvac_sync_last_action_utc": _iso_from_ts(getattr(hvac_status, "last_action_ts", None)),
+            "hvac_sync_pending_until_ts": getattr(hvac_status, "pending_until_ts", None),
+            "hvac_sync_pending_until_utc": _iso_from_ts(getattr(hvac_status, "pending_until_ts", None)),
 
             # Surface hardening knobs for easier debugging
             "cfg_min_publish_interval_s": getattr(hub, "_min_publish_interval_s", None),

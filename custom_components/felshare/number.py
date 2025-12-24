@@ -7,7 +7,13 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.components.number import NumberEntity, NumberMode
 from homeassistant.exceptions import HomeAssistantError
 
-from .const import DOMAIN
+from .const import (
+    DOMAIN,
+    CONF_HVAC_SYNC_ON_DELAY_SECONDS,
+    CONF_HVAC_SYNC_OFF_DELAY_SECONDS,
+    DEFAULT_HVAC_SYNC_ON_DELAY_SECONDS,
+    DEFAULT_HVAC_SYNC_OFF_DELAY_SECONDS,
+)
 from .coordinator import FelshareCoordinator
 from .entity import FelshareEntity
 
@@ -23,8 +29,67 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry, async_add_e
             FelshareRemainOilNumber(coordinator, entry, dev),
             FelshareWorkRunSecondsNumber(coordinator, entry, dev),
             FelshareWorkStopSecondsNumber(coordinator, entry, dev),
+            FelshareHvacSyncOnDelaySecondsNumber(coordinator, entry, dev),
+            FelshareHvacSyncOffDelaySecondsNumber(coordinator, entry, dev),
         ]
     )
+
+
+class _BaseHvacSyncDelayNumber(FelshareEntity, NumberEntity):
+    _attr_entity_category = EntityCategory.CONFIG
+    _attr_native_unit_of_measurement = "s"
+    _attr_mode = NumberMode.BOX
+    _attr_native_min_value = 0
+    _attr_native_max_value = 900
+    _attr_native_step = 1
+
+    _key: str
+    _default: int
+
+    @property
+    def native_value(self):
+        try:
+            return int(self._entry.options.get(self._key, self._default) or 0)
+        except Exception:
+            return int(self._default)
+
+    async def async_set_native_value(self, value: float) -> None:
+        new_opts = dict(self._entry.options)
+        new_opts[self._key] = int(value)
+        self.hass.config_entries.async_update_entry(self._entry, options=new_opts)
+
+        ctl = self.hass.data.get(DOMAIN, {}).get(self._entry.entry_id, {}).get("hvac_sync")
+        if ctl is not None:
+            await ctl.async_evaluate(force=True)
+        self.async_write_ha_state()
+
+
+class FelshareHvacSyncOnDelaySecondsNumber(_BaseHvacSyncDelayNumber):
+    _attr_has_entity_name = True
+    _attr_name = "HVAC sync on delay (seconds)"
+    _attr_suggested_object_id = "94_hvac_sync_on_delay_s"
+    _attr_icon = "mdi:timer-play-outline"
+
+    _key = CONF_HVAC_SYNC_ON_DELAY_SECONDS
+    _default = DEFAULT_HVAC_SYNC_ON_DELAY_SECONDS
+
+    def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:
+        super().__init__(coordinator, entry, dev)
+        self._attr_unique_id = f"{self._entry_id}_{dev}_hvac_sync_on_delay_s"
+
+
+class FelshareHvacSyncOffDelaySecondsNumber(_BaseHvacSyncDelayNumber):
+    _attr_has_entity_name = True
+    _attr_name = "HVAC sync off delay (seconds)"
+    _attr_suggested_object_id = "95_hvac_sync_off_delay_s"
+    _attr_icon = "mdi:timer-stop-outline"
+
+    _key = CONF_HVAC_SYNC_OFF_DELAY_SECONDS
+    _default = DEFAULT_HVAC_SYNC_OFF_DELAY_SECONDS
+
+    def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:
+        super().__init__(coordinator, entry, dev)
+        self._attr_unique_id = f"{self._entry_id}_{dev}_hvac_sync_off_delay_s"
 
 
 class FelshareConsumptionNumber(FelshareEntity, NumberEntity):
@@ -117,7 +182,8 @@ class FelshareWorkRunSecondsNumber(FelshareEntity, NumberEntity):
     _attr_icon = "mdi:timer-outline"
     _attr_mode = NumberMode.BOX
     _attr_native_min_value = 0
-    _attr_native_max_value = 3600
+    # Device limitation: 0..999 seconds
+    _attr_native_max_value = 999
     _attr_native_step = 1
 
     def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:
@@ -144,7 +210,8 @@ class FelshareWorkStopSecondsNumber(FelshareEntity, NumberEntity):
     _attr_icon = "mdi:timer-off-outline"
     _attr_mode = NumberMode.BOX
     _attr_native_min_value = 0
-    _attr_native_max_value = 3600
+    # Device limitation: 0..999 seconds
+    _attr_native_max_value = 999
     _attr_native_step = 1
 
     def __init__(self, coordinator: FelshareCoordinator, entry: ConfigEntry, dev: str) -> None:

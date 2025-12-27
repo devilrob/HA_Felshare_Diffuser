@@ -97,6 +97,15 @@ In **Settings → Devices & services → Felshare → Configure**:
 - **Min request_status interval (seconds)**: **60**
 - **Bulk status interval (hours)**: **6**
 - **Startup stale threshold (minutes)**: **30**
+- 
+## Lovelace Card (Dashboard)
+Download the YAML here:
+- Mushroom card: (Raw) : https://raw.githubusercontent.com/devilrob/felshare_cloud/refs/heads/main/lovelace/felshare_cloud_card_mushroom.yaml
+
+How to install:
+1. Open Home Assistant → Dashboard → Edit dashboard
+2. Add card → Manual
+3. Paste the YAML
 
 ## Notes
 
